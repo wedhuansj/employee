@@ -6,7 +6,9 @@ import a.employee.service.AttendanceService;
 import a.employee.service.DepartmentService;
 import a.employee.service.EmployeeService;
 import a.employee.service.PositionService;
+import jakarta.validation.constraints.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 @RestController
 @RequestMapping("/api")
+@Validated
 public class EmployeeController {
     private final EmployeeService empSrv;
     private final DepartmentService depSrv;
@@ -27,7 +30,7 @@ public class EmployeeController {
         this.attSrv = attSrv;
     }
     @PostMapping("/employees")
-    public ResponseEntity<String> addEmployee(@RequestParam String id, @RequestParam String name, @RequestParam int age, @RequestParam String gen, @RequestParam String addr, @RequestParam String phone, @RequestParam String email, @RequestParam double sal, @RequestParam int type) {
+    public ResponseEntity<String> addEmployee(@RequestParam @NotBlank String id, @RequestParam @NotBlank String name, @RequestParam @Min(18) @Max(65) int age, @RequestParam @NotBlank String gen, @RequestParam @NotBlank String addr, @RequestParam @NotBlank String phone, @RequestParam @Email String email, @RequestParam @Positive double sal, @RequestParam @Min(1) @Max(2) int type) {
         try {
             empSrv.registerEmployee(id, name, age, gen, addr, phone, email, sal, type);
             return ResponseEntity.ok("success");
@@ -36,7 +39,7 @@ public class EmployeeController {
         }
     }
     @DeleteMapping("/employees/{id}")
-    public ResponseEntity<String> deleteEmployee(@PathVariable String id) {
+    public ResponseEntity<String> deleteEmployee(@PathVariable @NotBlank String id) {
         try {
             empSrv.removeEmployee(id);
             return ResponseEntity.ok("success");
@@ -45,7 +48,7 @@ public class EmployeeController {
         }
     }
     @PutMapping("/employees/{id}/name")
-    public ResponseEntity<String> updateName(@PathVariable String id, @RequestParam String name) {
+    public ResponseEntity<String> updateName(@PathVariable @NotBlank String id, @RequestParam @NotBlank String name) {
         try {
             empSrv.updateEmployeeName(id, name);
             return ResponseEntity.ok("success");
@@ -54,7 +57,7 @@ public class EmployeeController {
         }
     }
     @GetMapping("/employees/{id}")
-    public ResponseEntity<Object> getById(@PathVariable String id) {
+    public ResponseEntity<Object> getById(@PathVariable @NotBlank String id) {
         Employee e = empSrv.searchById(id);
         return e != null ? ResponseEntity.ok(e) : ResponseEntity.status(404).body("not found");
     }
@@ -67,12 +70,12 @@ public class EmployeeController {
         return ResponseEntity.ok(empSrv.getEmployeesSorted());
     }
     @PostMapping("/departments")
-    public ResponseEntity<String> createDep(@RequestParam String id, @RequestParam String name, @RequestParam String mgr) {
+    public ResponseEntity<String> createDep(@RequestParam @NotBlank String id, @RequestParam @NotBlank String name, @RequestParam @NotBlank String mgr) {
         depSrv.createDep(id, name, mgr);
         return ResponseEntity.ok("success");
     }
     @PutMapping("/employees/assign-department")
-    public ResponseEntity<String> assignDep(@RequestParam String empId, @RequestParam String targetId) {
+    public ResponseEntity<String> assignDep(@RequestParam @NotBlank String empId, @RequestParam @NotBlank String targetId) {
         try {
             empSrv.assignDep(empId, targetId);
             return ResponseEntity.ok("success");
@@ -81,12 +84,12 @@ public class EmployeeController {
         }
     }
     @PostMapping("/positions")
-    public ResponseEntity<String> createPos(@RequestParam String id, @RequestParam String name, @RequestParam double alw) {
+    public ResponseEntity<String> createPos(@RequestParam @NotBlank String id, @RequestParam @NotBlank String name, @RequestParam @Positive double alw) {
         posSrv.createPos(id, name, alw);
         return ResponseEntity.ok("success");
     }
     @PutMapping("/employees/assign-position")
-    public ResponseEntity<String> assignPos(@RequestParam String empId, @RequestParam String targetId) {
+    public ResponseEntity<String> assignPos(@RequestParam @NotBlank String empId, @RequestParam @NotBlank String targetId) {
         try {
             empSrv.assignPos(empId, targetId);
             return ResponseEntity.ok("success");
@@ -95,7 +98,7 @@ public class EmployeeController {
         }
     }
     @PostMapping("/attendance")
-    public ResponseEntity<String> checkIn(@RequestParam String empId, @RequestParam int day, @RequestParam int hour, @RequestParam int ot) {
+    public ResponseEntity<String> checkIn(@RequestParam @NotBlank String empId, @RequestParam @Min(1) @Max(31) int day, @RequestParam @Min(0) @Max(24) int hour, @RequestParam @PositiveOrZero int ot) {
         try {
             attSrv.checkIn(empId, day, hour, ot);
             return ResponseEntity.ok("success");
@@ -123,7 +126,7 @@ public class EmployeeController {
         for (Employee e : list) {
             double s = e.calculateSalary();
             total  += s;
-            if (s > maxEmp.calculateSalary() || maxEmp == null) maxEmp = e;
+            if (maxEmp == null || s > maxEmp.calculateSalary()) maxEmp = e;
         }
         Map<String, Object> res = new HashMap<>();
         res.put("totalBudget", total);
