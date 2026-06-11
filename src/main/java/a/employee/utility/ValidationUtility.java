@@ -19,6 +19,14 @@ public class ValidationUtility {
         }
         return true;
     }
+    public boolean checkNum(double x) {
+        try {
+            int a = Integer.parseInt(String.valueOf(x));
+        } catch (Exception ex) {
+            return false;
+        }
+        return true;
+    }
     public boolean checkPhone(String s) {
         if (s == null)
             return false;

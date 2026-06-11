@@ -3,14 +3,17 @@ package a.employee.service;
 import a.employee.dto.PositionRequestDTO;
 import a.employee.exception.CustomException;
 import a.employee.model.Position;
+import a.employee.repository.PositionRepository;
 import a.employee.utility.ValidationUtility;
 import org.springframework.stereotype.Service;
-import a.employee.repository.GenericRepositoryImpl;
+
+import java.util.Optional;
+
 @Service
 public class PositionService {
-    private final GenericRepositoryImpl<Position> repo;
+    private final PositionRepository repo;
     private final ValidationUtility valid;
-    public PositionService(GenericRepositoryImpl<Position> repo, ValidationUtility valid) {
+    public PositionService(PositionRepository repo, ValidationUtility valid) {
         this.repo = repo;
         this.valid = valid;
     }
@@ -18,8 +21,8 @@ public class PositionService {
         if (a.getAlw() < 0) throw new CustomException("Trợ cấp không được dưới 0!");
         if (valid.checkValid(a.getName())) throw new CustomException("Tên chức vụ không được để trống!");
         if (valid.checkValid(a.getId())) throw new CustomException("ID chức vụ không được để trống!");
-        Position p = repo.findById(a.getId(), Position.class);
-        if (p != null) throw new CustomException("ID chức vụ đã tồn tại!");
-        repo.add(new Position(a.getAlw(), a.getName(), a.getId()));
+        Optional<Position> p = repo.findById(a.getId());
+        if (p.isPresent()) throw new CustomException("ID chức vụ đã tồn tại!");
+        repo.save(new Position(a.getAlw(), a.getName(), a.getId()));
     }
 }

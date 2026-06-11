@@ -4,16 +4,19 @@ import a.employee.dto.EmployeeRequestDTO;
 import a.employee.exception.CustomException;
 import a.employee.model.Employee;
 import a.employee.service.EmployeeService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 @RestController
 @RequestMapping("/api/employees")
+@Validated
 public class EmployeeController {
     private final EmployeeService empSrv;
     public EmployeeController(EmployeeService empSrv) { this.empSrv = empSrv; }
     @PostMapping
-    public ResponseEntity<String> addEmployee(@RequestBody EmployeeRequestDTO e) {
+    public ResponseEntity<String> addEmployee(@Valid @RequestBody EmployeeRequestDTO e) {
         try {
             empSrv.registerEmployee(e);
             return ResponseEntity.ok("ok");
@@ -30,7 +33,7 @@ public class EmployeeController {
             return ResponseEntity.badRequest().body(ex.toString());
         }
     }
-    @PutMapping("/{id}/name")
+    @PatchMapping("/{id}/name")
     public ResponseEntity<String> updateName(@PathVariable String id, @RequestParam String name) {
         try {
             empSrv.updateEmployeeName(id, name);
@@ -52,7 +55,7 @@ public class EmployeeController {
     public ResponseEntity<List<Employee>> getAll() {
         return ResponseEntity.ok(empSrv.getAllEmployees());
     }
-    @GetMapping
+    @GetMapping("/sorted")
     public ResponseEntity<List<Employee>> getAllSorted() {
         return ResponseEntity.ok(empSrv.getEmployeesSorted());
     }
