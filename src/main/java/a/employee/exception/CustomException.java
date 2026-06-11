@@ -1,4 +1,4 @@
-package exception;
+package a.employee.exception;
 
 public class CustomException extends Exception {
     public CustomException(String msg) {
