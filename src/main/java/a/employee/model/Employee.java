@@ -15,6 +15,8 @@ public abstract class Employee extends Person {
     @ManyToOne()
     @JoinColumn(name="dep_id")
     protected Department department;
+    @Column(name = "avatar_path")
+    private String avatarPath;
     @ManyToMany()
     @JoinTable(
             name = "employee_position",
@@ -64,4 +66,6 @@ public abstract class Employee extends Person {
     public Double getBaseSalary() { return baseSalary; }
     public void setBaseSalary(Double baseSalary) { this.baseSalary = baseSalary; }
     public abstract Double calculateSalary();
+    public String getAvatarPath() { return avatarPath; }
+    public void setAvatarPath(String avatarPath) { this.avatarPath = avatarPath; }
 }
