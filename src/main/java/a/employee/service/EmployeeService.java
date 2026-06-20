@@ -1,86 +1,107 @@
 package a.employee.service;
 
+import a.employee.dto.AssignDepDTO;
+import a.employee.dto.AssignPosDTO;
 import a.employee.dto.EmployeeRequestDTO;
+import a.employee.dto.UpdateNameDTO;
 import a.employee.exception.CustomException;
 import a.employee.model.*;
-import a.employee.repository.GenericRepositoryImpl;
-import a.employee.utility.ValidationUtility;
+import a.employee.repository.DepartmentRepository;
+import a.employee.repository.EmployeeRepository;
+import a.employee.repository.PositionRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Optional;
+
 @Service
+@Validated
 public class EmployeeService {
-    private final GenericRepositoryImpl<Employee> repo;
-    private final GenericRepositoryImpl<Department> dRepo;
-    private final GenericRepositoryImpl<Position> pRepo;
-    private final ValidationUtility valid;
-    public EmployeeService(GenericRepositoryImpl<Employee> repo, GenericRepositoryImpl<Department> dRepo, GenericRepositoryImpl<Position> pRepo, ValidationUtility valid) {
+    private final EmployeeRepository repo;
+    private final DepartmentRepository dRepo;
+    private final PositionRepository pRepo;
+    private final Path root = Paths.get("uploads/avatars");
+    public EmployeeService(EmployeeRepository repo, DepartmentRepository dRepo, PositionRepository pRepo) {
         this.repo = repo;
         this.dRepo = dRepo;
         this.pRepo = pRepo;
-        this.valid = valid;
+        try {
+            Files.createDirectories(root);
+        } catch (Exception e) {
+            throw new RuntimeException("Không thể tạo ra thư mục lưu ảnh!");
+        }
     }
-    public void registerEmployee(EmployeeRequestDTO e) throws CustomException {
-        if (valid.checkValid(e.getId())) throw new CustomException("Mã nhân viên không được để trống!");
-        if (valid.checkValid(e.getName())) throw new CustomException("Tên không được để trống!");
-        if (valid.checkValid(e.getAddress())) throw new CustomException("Địa chỉ nhân viên không được để trống!");
-        if (valid.checkValid(e.getPhoneNum())) throw new CustomException("Số điện thoại nhân viên không được để trống!");
-        if (valid.checkValid(e.getEmail())) throw new CustomException("Không được để trống email!");
-        if (valid.checkSal(e.getBaseSalary())) throw new CustomException("Lương không được dưới 0 hoặc bằng 0!");
-        if (e.getAge() > 61) throw new CustomException("Nhân viên quá tuổi lao động!");
-        if (e.getAge() < 18) throw new CustomException("Nhân viên không đủ tuổi đi làm!");
-        if (!valid.checkNum(e.getAge())) throw new CustomException("Nhập sai dữ liệu tuổi nhân viên!");
-        if (!valid.checkGen(e.getGender())) throw new CustomException("Giới tính không hợp lệ!");
-        if (!valid.checkPhone(e.getPhoneNum())) throw new CustomException("Định dạng số điện thoại không hợp lệ!");
-        if (!valid.checkEmail(e.getEmail())) throw new CustomException("Sai định dạng email!");
-        if (!valid.checkType(e.getType())) throw new CustomException("Loại không hợp lệ!");
-        if (repo.findById(e.getId(), Employee.class) != null) throw new CustomException("Mã nhân viên đã tồn tại!");
-        if (e.getType() == 1) repo.add(new FullTimeEmployee(e.getId(), e.getName(), e.getAge(), e.getGender(), e.getAddress(), e.getPhoneNum(), e.getEmail(), e.getBaseSalary()));
-        if (e.getType() == 2) repo.add(new PartTimeEmployee(e.getId(), e.getName(), e.getAge(), e.getGender(), e.getAddress(), e.getPhoneNum(), e.getEmail(), e.getBaseSalary()));
+    public Page<Employee> getAllEmployees(Pageable pageable) {
+        return repo.findAll(pageable);
     }
-    public void removeEmployee(String id) throws CustomException {
-        if (valid.checkValid(id)) throw new CustomException("ID nhân viên không được để trống!");
-        if (repo.findById(id, Employee.class) == null) throw new CustomException("Nhân viên không tồn tại!");
-        repo.delete(id, Employee.class);
-    }
-    public void updateEmployeeName(String id, String newName) throws CustomException {
-        if (valid.checkValid(id)) throw new CustomException("ID nhân viên không được để trống!");
-        if (valid.checkValid(newName)) throw new CustomException("Tên nhân viên không được để trống!");
-        Employee e = (Employee) repo.findById(id, Employee.class);
-        if (e == null) throw new CustomException("Nhân viên không tồn tại!");
-        e.setName(newName);
-        repo.update(e);
-    }
-    public Employee searchById(String id) throws CustomException {
-        if (valid.checkValid(id)) throw new CustomException("ID nhân viên không được để trống");
-        Employee e = repo.findById(id, Employee.class);
-        if (e == null) throw new CustomException("Nhân viên không tồn tại!");
-        return e;
+    public void saveAvatar(String id, MultipartFile file) throws CustomException {
+        Employee e = repo.findById(id).orElseThrow(() -> new CustomException("Nhân viên không tồn tại!"));
+        try {
+            String originFileName = file.getOriginalFilename();
+            String extension = originFileName.substring(originFileName.lastIndexOf("."));
+            String filename = "avatar_" + id + extension;
+            Path targetPath = this.root.resolve(filename);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            e.setAvatarPath(targetPath.toString());
+            repo.save(e);
+        } catch (Exception ex) {
+            throw new CustomException("Lỗi lưu file ảnh: " + ex.getMessage());
+        }
     }
     public List<Employee> getAllEmployees() {
-        return repo.findAllEmployees();
+        return repo.findAll();
+    }
+    public void registerEmployee(EmployeeRequestDTO e) throws CustomException {
+        if (repo.findById(e.getId()).isPresent()) throw new CustomException("Mã nhân viên đã tồn tại!");
+        if (e.getType() == 1) repo.save(new FullTimeEmployee(e.getId(), e.getName(), e.getAge(), e.getGender(), e.getAddress(), e.getPhoneNum(), e.getEmail(), e.getBaseSalary()));
+        if (e.getType() == 2) repo.save(new PartTimeEmployee(e.getId(), e.getName(), e.getAge(), e.getGender(), e.getAddress(), e.getPhoneNum(), e.getEmail(), e.getBaseSalary()));
+    }
+    public void removeEmployee(@NotBlank(message = "ID nhân viên không được để trống!") String id) throws CustomException {
+        Optional<Employee> e = repo.findById(id);
+        if (e.isEmpty()) throw new CustomException("Nhân viên không tồn tại!");
+        repo.delete(e.get());
+    }
+    public void updateEmployeeName(UpdateNameDTO a) throws CustomException {
+        Optional<Employee> optionalEmployee = repo.findById(a.getId());
+        if (optionalEmployee.isEmpty()) throw new CustomException("Nhân viên không tồn tại!");
+        Employee employee = optionalEmployee.get();
+        employee.setName(a.getName());
+        repo.save(employee);
+    }
+    public Employee searchById(@NotBlank(message = "ID nhân viên không được để trống!") String id) throws CustomException {
+        Optional<Employee> e = repo.findById(id);
+        if (e.isEmpty()) throw new CustomException("Nhân viên không tồn tại!");
+        return e.get();
     }
     public List<Employee> getEmployeesSorted() { // sorted by salary
-        List<Employee> list = repo.findAllEmployees();
+        List<Employee> list = repo.findAll();
         list.sort((e1, e2) -> Double.compare(e2.calculateSalary(), e1.calculateSalary()));
         return list;
     }
-    public void assignDep(String empId, String depId) throws CustomException {
-        if (valid.checkValid(empId)) throw new CustomException("ID nhân viên không được để trống!");
-        if (valid.checkValid(depId)) throw new CustomException("ID phòng ban không được để trống!");
-        Employee e = (Employee) repo.findById(empId, Employee.class);
-        Department d = (Department) dRepo.findById(depId, Department.class);
-        if (e == null) throw new CustomException("Nhân viên không tồn tại!");
-        if (d == null) throw new CustomException("Phòng ban không tồn tại!");
-        e.setDepartment(d);
-        repo.update(e);
+    public void assignDep(AssignDepDTO a) throws CustomException {
+        Optional <Employee> e = repo.findById(a.getEmpId());
+        Optional <Department> d = dRepo.findById(a.getDepId());
+        if (e.isEmpty()) throw new CustomException("Nhân viên không tồn tại!");
+        if (d.isEmpty()) throw new CustomException("Phòng ban không tồn tại!");
+        e.get().setDepartment(d.get());
+        repo.save(e.get());
     }
-    public void assignPos(String empId, String posId) throws CustomException {
-        Employee e = (Employee) repo.findById(empId, Employee.class);
-        Position p = (Position) pRepo.findById(posId, Position.class);
-        if (e == null) throw new CustomException("Nhân viên không tồn tại!");
-        if (p == null) throw new CustomException("Chức vụ không tồn tại!");
-        e.getPositions().add(p);
-        repo.update(e);
+    public void assignPos(AssignPosDTO a) throws CustomException {
+        Optional<Employee> e = repo.findById(a.getEmpId());
+        Optional<Position> p = pRepo.findById(a.getPosId());
+        if (e.isEmpty()) throw new CustomException("Nhân viên không tồn tại!");
+        if (p.isEmpty()) throw new CustomException("Chức vụ không tồn tại!");
+        e.get().getPositions().add(p.get());
+        repo.save(e.get());
     }
 }

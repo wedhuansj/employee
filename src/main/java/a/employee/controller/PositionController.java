@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PositionController {
     private final PositionService posSrv;
     public PositionController(PositionService posSrv) { this.posSrv = posSrv; }
-    @PostMapping()
+    @PostMapping
     public ResponseEntity<String> createPos(@RequestBody PositionRequestDTO a) {
         try {
             posSrv.createPos(a);
